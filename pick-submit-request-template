@@ -1,0 +1,114 @@
+securityContext = ''
+responseData = ""
+version = ''
+httpMethod = '' ;*GET or POST
+errMessage = ''
+url = '' ; The URL you are consuming
+JSON = '' ; If the method is a POST and your are posting a JSON body, the JSON will be in the JSON variable
+
+*You will need to know what headers are required to call the service and their values
+requestHeaders = 'Content-Type'
+requestHeaders<-1> = 'Accept'
+requestHeaderValues = 'application/json'
+requestHeaderValues<-1> = 'application/json'
+
+
+
+errCode = setHTTPDefault("version", "1.1")
+if errCode # 0 then
+   begin case
+      case errCode = 1
+         errMessage = 'Invalid setHTTPDefault option'
+      case errCode = 2
+         errMessage = 'Invalid setHTTPDefault Value'
+      case 1
+         errMessage = 'setHTTPDefault could not be set'
+   end case
+   return
+end
+
+errCode = createSecurityContext(securityContext, version)
+if errCode # 0 then
+   begin case
+      case errCode = 1
+         errMessage = 'Invalid createSecurityContext option'
+      case errCode = 2
+         errMessage = 'Invalid createSecurityContext version'
+      case 1
+         errMessage = 'SecurityContext could not be set'
+   end case
+   return
+end
+
+errCode = addAuthenticationRule(securityContext, "2", "VerificationStrength", "generous")
+if errCode # 0 then
+   begin case
+      case errCode = 1
+         errMessage = 'Invalid Security Context handle'
+      case errCode = 2
+         errMessage = 'Invalid Authentication rule name'
+      case errCode = 3
+         errMessage = 'Invalid Authentication rule content'
+      case 1
+         errMessage = 'AuthenticationRule could not be set'
+   end case
+   return
+end
+
+errCode = createSecureRequest(url, httpMethod, requestHandle, securityContext)
+if errCode # 0 then
+   begin case
+      case errCode = 1
+         errMessage = 'Invalid URL (Syntactically)'
+      case errCode = 2
+         errMessage = 'Invalid method (ForHTTP 1.0, only GET/POST/HEAD)'
+      case 1
+         errMessage = 'createSecureRequest not be created'
+   end case
+   return
+end
+
+* Add any additional headers
+requestHeaderCount = dcount(requestHeaders,@fm)
+for x = 1 to requestHeaderCount
+   errCode = setRequestHeader(requestHandle,requestHeaders<x>,requestHeaderValues<x>)
+   if errCode # 0 then
+      begin case
+         case errCode = 1
+            errMessage = 'Invalid request handle.'
+            return
+         case errCode = 2
+            errMessage = 'Invalid header.'
+            return
+         case errCode = 3
+            errMessage = 'Invalid header value.'
+            return
+      end case
+   end
+next x
+
+errCode = submitRequest(requestHandle, httpTimeOut, JSON, responseHeaders, responseData, httpStatus)
+
+oList<1> = httpStatus<1,1> ; <1,1> - HTTP Status Code, <1,2> - HTTP Status Description.  For example 200ýOK
+
+if errCode ne 0 then
+   begin case
+      case errCode = 1
+         errMessage = 'Invalid request handle'
+      case errCode = 2
+         errMessage = 'Timed out'
+      case errCode = 3
+         errMessage = 'Network Error'
+      case errCode = 4
+         errMessage = 'Other Errors'
+      case index(responseData, "400 The plain HTTP request", 1) > 0
+         errMessage = change(errMessage, char(9), '')
+         errMessage = change(errMessage, char(10), '')
+         errMessage = change(errMessage, char(13), '')
+         errMessage = trim(errMessage)
+      case 1
+         errMessage = 'submitRequest could not be set'
+   end case
+end else
+   *  Here you will parse the responseData returned from the service
+end
